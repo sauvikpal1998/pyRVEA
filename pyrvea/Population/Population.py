@@ -16,7 +16,7 @@ from pyrvea.Recombination.simulated_binary_crossover import crossover
 
 from pyrvea.OtherTools.plotlyanimate import animate_init_, animate_next_
 from pyrvea.OtherTools.IsNotebook import IsNotebook
-
+import random
 from pyrvea.Recombination.ppga_crossover import ppga_crossover
 from pyrvea.Recombination.evodn2_xover_mut import evodn2_xover_mut
 from pyrvea.Recombination.ppga_mutation import ppga_mutation
@@ -318,45 +318,57 @@ class Population:
 
         Conduct simulated binary crossover and bounded polunomial mutation.
         """
+        offspring = np.empty(
+            (
+                0,
+                self.problem.num_input_nodes + 1,
+                self.problem.num_nodes,
+            ),
+            float,
+        )
 
         if self.individuals.ndim >= 2:
-            # Get individuals at indices
-            w1, w2 = self.individuals[ind1], self.individuals[ind2]
+            for ind in range(self.individuals.shape[0]):
 
-            # Perform crossover
-            if params["crossover_type"] == "short":
-                offspring1, offspring2 = evodn2_xover_mut(
-                    w1,
-                    w2,
-                    self.individuals,
-                    params["prob_crossover"],
-                    params["prob_mutation"],
-                    params["mut_strength"],
-                    params["current_iteration_gen_count"],
-                    params["generations"]
-                )
-            else:
-                xover_w1, xover_w2 = ppga_crossover(w1, w2, params["prob_crossover"])
+                # Get individuals at indices
+                if ind1 is None or ind2 is None:
+                    w1, w2 = self.individuals[random.randint(0, self.individuals.shape[0]-1)], self.individuals[random.randint(0, self.individuals.shape[0]-1)]
 
-                # Make a list of individuals suitable for mutation, exclude the ones to be mutated
-                # so that they won't mutate with themselves
-                indices = [ind1, ind2]
-                mask = np.ones(len(self.individuals), dtype=bool)
-                mask[indices] = False
-                alternatives = self.individuals[mask, ...][:, 1:, :]
+                else:
+                    w1, w2 = self.individuals[ind1], self.individuals[ind2]
 
-                # Mutate
-                offspring1, offspring2 = ppga_mutation(
-                    alternatives,
-                    xover_w1,
-                    xover_w2,
-                    params["current_iteration_gen_count"],
-                    params["generations"],
-                    params["prob_mutation"],
-                    params["mut_strength"],
-                )
+                # Perform crossover
+                if params["crossover_type"] == "short":
+                    offspring1, offspring2 = evodn2_xover_mut(
+                        w1,
+                        w2,
+                        self.individuals,
+                        params["prob_crossover"],
+                        params["prob_mutation"],
+                        params["mut_strength"],
+                        params["current_iteration_gen_count"],
+                        params["generations"]
+                    )
+                else:
+                    xover_w1, xover_w2 = ppga_crossover(w1, w2)
 
-            return offspring1, offspring2
+                    # Make a list of individuals suitable for mutation, exclude the ones to be mutated
+                    # so that they won't mutate with themselves
+                    indices = [ind1, ind2]
+                    mask = np.ones(len(self.individuals), dtype=bool)
+                    mask[indices] = False
+                    alternatives = self.individuals[mask, ...][:, 1:, :]
+
+                    # Mutate
+                    offspring1, offspring2 = ppga_mutation(
+                        alternatives,
+                        xover_w1,
+                        xover_w2,
+                        params["current_iteration_gen_count"]
+                    )
+                    offspring = np.concatenate((offspring, [offspring1], [offspring2]))
+
+            return offspring
 
         else:
             offspring = crossover(self)

@@ -1,6 +1,7 @@
 from pyrvea.Problem.baseProblem import baseProblem
 from pyrvea.Population.Population import Population
 from pyrvea.EAs.PPGA import PPGA
+from pyrvea.EAs.RVEA import RVEA
 from math import ceil
 import numpy as np
 import plotly
@@ -122,14 +123,18 @@ class EvoNN(baseProblem):
         pop = Population(
             self, assign_type="EvoNN", pop_size=self.params["pop_size"], plotting=False
         )
+        # pop.evolve(
+        #     PPGA,
+        #     {
+        #         "logging": self.params["logging"],
+        #         "logfile": model.log,
+        #         "iterations": 10,
+        #         "generations_per_iteration": 10,
+        #     },
+        # )
+
         pop.evolve(
-            PPGA,
-            {
-                "logging": self.params["logging"],
-                "logfile": model.log,
-                "iterations": 10,
-                "generations_per_iteration": 10,
-            },
+            RVEA
         )
 
         non_dom_front = pop.non_dominated()

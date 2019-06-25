@@ -92,6 +92,7 @@ class RVEA(BaseDecompositionEA):
             "generations": generations_per_iteration,
             "iterations": iterations,
             "Alpha": Alpha,
+            "crossover_type": "evonn",
             "ploton": plotting,
             "current_iteration_gen_count": 0,
             "current_iteration_count": 0,
