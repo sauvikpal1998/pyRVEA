@@ -2,18 +2,16 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.neural_network import MLPRegressor
 from pyrvea.Problem.evonn_problem import EvoNNModel as EvoNN
 from pyrvea.Problem.evodn2_problem import EvoDN2Model as EvoDN2
-
-# from sklearn.gaussian_process.kernels import RBF, WhiteKernel, ConstantKernel as C
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split as tts
 import numpy as np
 from sklearn.metrics import r2_score
-from pyrvea.Problem.baseProblem import baseProblem
+from pyrvea.Problem.baseproblem import BaseProblem
 import pandas as pd
 from typing import List
 
 
-class DataProblem(baseProblem):
+class DataProblem(BaseProblem):
     def __init__(
         self,
         data: pd.DataFrame = None,
@@ -25,7 +23,7 @@ class DataProblem(baseProblem):
         num_of_constraints=0,
         lower_limits: List[float] = None,
         upper_limits: List[float] = None,
-        name=None,
+        name="data_problem",
     ):
         self.raw_data = data
         self.data = data
@@ -36,8 +34,6 @@ class DataProblem(baseProblem):
         self.num_of_constraints = num_of_constraints
         self.number_of_samples = self.data.shape[0]
         self.name = name
-        if name is None:
-            self.name = "dataproblem"
         if minimize is None:
             self.minimize = [True] * self.num_of_objectives
         else:
@@ -57,8 +53,11 @@ class DataProblem(baseProblem):
         self.test_indices: List[List] = []
         self.validation_indices: List[List] = None
 
-        # self.models = dict.fromkeys(self.y, [])
-        self.models = {}
+        # self.models = dict.fromkeys(self.y, [])  # This method duplicates models in each key, why?
+        self.models = {}                           # This works..
+        for x in self.y:
+            self.models[x] = []
+
         self.metrics = []
         # Defining bounds in the decision space
         if lower_limits is None:
@@ -86,7 +85,7 @@ class DataProblem(baseProblem):
     def outlier_removal(self):  # Removes the outliers
         pass
 
-    def train_test_split(self, train_size: float = 0.7):  # Split dataset
+    def train_test_split(self, train_size: float = 0.8):  # Split dataset
 
         for x in range(1):
             train_indices, test_indices = tts(self.all_indices, train_size=train_size)
@@ -97,7 +96,7 @@ class DataProblem(baseProblem):
         if objectives is None:
             objectives = self.y
         if model_type is None:
-            model_type = "GPR"
+            model_type = "MLP"
         surrogate_model_options = {
             "GPR": GaussianProcessRegressor,
             "MLP": MLPRegressor,
@@ -109,15 +108,16 @@ class DataProblem(baseProblem):
         print("Building Surrogate Models ...")
         # Fit to data using Maximum Likelihood Estimation of the parameters
         for obj in objectives:
+
             print("Building model for " + str(obj))
             for train_run, train_indices in enumerate(self.train_indices):
                 print("Training run number", train_run, "of", len(self.train_indices))
                 model = model_type(**kwargs)
                 model.fit(
-                    np.array(self.data[self.x])[train_indices],
-                    np.array(self.data[obj])[train_indices],
+                    np.asarray(self.data[self.x])[train_indices],
+                    np.asarray(self.data[obj])[train_indices],
                 )
-                self.models[obj] = [model]
+                self.models[obj].append(model)
 
         # Select model
         print("Surrogate models build completed.")
@@ -163,7 +163,7 @@ class DataProblem(baseProblem):
         pass
 
     def objectives(self, decision_variables):
-        """
+        """Objectives function to use in optimization.
 
         Parameters
         ----------
@@ -183,3 +183,4 @@ class DataProblem(baseProblem):
             )
 
         return objectives
+

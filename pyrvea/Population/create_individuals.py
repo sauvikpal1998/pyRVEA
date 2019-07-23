@@ -5,10 +5,13 @@ from pyDOE import lhs
 
 
 def create_new_individuals(design, problem, pop_size=None):
-    """Create, evaluate and add new individuals to the population. Initiate Plots.
+    """Create new individuals to the population.
 
     The individuals can be created randomly, by LHS design, or can be passed by the
     user.
+
+    Design does not apply in case of EvoNN and EvoDN2 problem, where neural networks are created
+    as individuals.
 
     Parameters
     ----------
@@ -23,8 +26,12 @@ def create_new_individuals(design, problem, pop_size=None):
     pop_size : int, optional
         Number of individuals in the population. If none, some default population
         size based on number of objectives is chosen.
-    num_var : int
-        Number of variables
+
+    Returns
+    -------
+    individuals : list
+        A list of individuals.
+
     """
 
     if pop_size is None:
@@ -57,25 +64,18 @@ def create_new_individuals(design, problem, pop_size=None):
 
     elif design == "EvoNN":
 
-        """Create a population of neural networks for the EvoNN problem.
+        """Create a population of neural networks for the EvoNN algorithm.
 
         Individuals are 2d arrays representing the weight matrices of the NNs.
         One extra row is added for bias. 
 
         """
-        try:
-            w_low = problem.w_low
-            w_high = problem.w_high
-            in_nodes = problem.num_of_variables
-            num_nodes = problem.num_nodes
-            prob_omit = problem.prob_omit
 
-        except AttributeError:
-            w_low = -5
-            w_high = 5
-            in_nodes = problem.num_of_variables
-            num_nodes = 20
-            prob_omit = 0.2
+        w_low = problem.params["w_low"]
+        w_high = problem.params["w_high"]
+        in_nodes = problem.num_of_variables
+        num_nodes = problem.params["num_nodes"]
+        prob_omit = problem.params["prob_omit"]
 
         individuals = np.random.uniform(
             w_low,
@@ -96,20 +96,27 @@ def create_new_individuals(design, problem, pop_size=None):
         return individuals
 
     elif design == "EvoDN2":
+        """Create a population of deep neural networks (DNNs) for the EvoDN2 algorithm.
+
+        Each individual is a list of subnets, and each subnet contains a random amount of layers and
+        nodes per layer. The subnets are evolved via evolutionary algorithms, and they converge
+        on the final linear layer of the DNN.
+
+        """
 
         individuals = []
         for i in range(problem.params["pop_size"]):
             nets = []
-            for j in range(problem.num_subnets):
+            for j in range(problem.params["num_subnets"]):
 
                 layers = []
-                num_layers = np.random.randint(1, problem.max_layers)
+                num_layers = np.random.randint(1, problem.params["max_layers"])
                 in_nodes = len(problem.subsets[j])
 
                 for k in range(num_layers):
-                    out_nodes = random.randint(2, problem.max_nodes)
+                    out_nodes = random.randint(2, problem.params["max_nodes"])
                     net = np.random.uniform(
-                        problem.w_low, problem.w_high, size=(in_nodes, out_nodes)
+                        problem.params["w_low"], problem.params["w_high"], size=(in_nodes, out_nodes)
                     )
                     # Randomly set some weights to zero
                     zeros = np.random.choice(

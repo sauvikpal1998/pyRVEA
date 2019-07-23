@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
-from pyDOE import lhs
 from pygmo import fast_non_dominated_sorting as nds
 from pygmo import hypervolume as hv
 from pygmo import non_dominated_front_2d as nd2
@@ -12,20 +11,25 @@ from pygmo import non_dominated_front_2d as nd2
 from tqdm import tqdm, tqdm_notebook
 
 from pyrvea.Population.create_individuals import create_new_individuals
+import plotly
+import plotly.graph_objs as go
 
 from pyrvea.OtherTools.plotlyanimate import animate_init_, animate_next_
 from pyrvea.OtherTools.IsNotebook import IsNotebook
 from pyrvea.Recombination import (
-    evodn2_xover_mut_gaussian,
+    evodn2_self_adapting,
+    evodn2_gaussian,
+    evonn_nodeswap_gaussian,
+    evonn_nodeswap_self_adapting,
     evonn_mut_gaussian,
-    ppga_crossover,
-    self_adapting_mutation,
+    evonn_xover_nodeswap,
+    evonn_mut_self_adapting,
     bounded_polynomial_mutation,
     simulated_binary_crossover,
 )
 
 if TYPE_CHECKING:
-    from pyrvea.Problem.baseProblem import baseProblem
+    from pyrvea.Problem.baseproblem import BaseProblem
     from pyrvea.EAs.baseEA import BaseEA
 
 
@@ -34,20 +38,20 @@ class Population:
 
     def __init__(
         self,
-        problem: "baseProblem",
-        assign_type: str = "LHSDesign",
+        problem: "BaseProblem",
+        assign_type: str = "RandomDesign",
         plotting: bool = True,
         pop_size=None,
-        crossover_type=None,
-        mutation_type=None,
         recombination_type=None,
+        crossover_type="simulated_binary_crossover",
+        mutation_type="bounded_polynomial_mutation",
         *args
     ):
         """Initialize the population.
 
         Attributes
         ----------
-        problem : baseProblem
+        problem : BaseProblem
             An object of the class Problem
         assign_type : str, optional
             Define the method of creation of population.
@@ -55,11 +59,16 @@ class Population:
             randomly. If 'assign_type' is 'LHSDesign', the population is
             generated via Latin Hypercube Sampling. If 'assign_type' is
             'custom', the population is imported from file. If assign_type
-            is 'empty', create blank population. (the default is "RandomAssign")
+            is 'empty', create blank population.
+            'EvoNN' and 'EvoDN2' will create neural networks or deep neural networks, respectively,
+             for population .
         plotting : bool, optional
             (the default is True, which creates the plots)
         pop_size : int
             Population size
+        recombination_type, crossover_type, mutation_type : str
+            Recombination functions. If recombination_type is specified, crossover and mutation
+            will be handled by the same function. If None, they are done separately.
 
         """
         self.num_var = problem.num_of_variables
@@ -69,12 +78,15 @@ class Population:
         self.non_dom = 0
         self.pop_size = pop_size
         self.recombination_funcs = {
-            "DNN_gaussian_xover+mut": evodn2_xover_mut_gaussian,
-            "2d_gaussian": evonn_mut_gaussian,
-            "EvoNN_xover": ppga_crossover,
-            "self_adapting": self_adapting_mutation,
+            "evodn2_self_adapting": evodn2_self_adapting,
+            "evodn2_gaussian": evodn2_gaussian,
+            "evonn_nodeswap_gaussian": evonn_nodeswap_gaussian,
+            "evonn_nodeswap_self_adapting": evonn_nodeswap_self_adapting,
+            "evonn_xover_nodeswap": evonn_xover_nodeswap,
+            "evonn_mut_gaussian": evonn_mut_gaussian,
+            "evonn_mut_self_adapting": evonn_mut_self_adapting,
             "bounded_polynomial_mutation": bounded_polynomial_mutation,
-            "simulated_binary_crossover": simulated_binary_crossover,
+            "simulated_binary_crossover": simulated_binary_crossover
         }
         self.crossover_type = crossover_type
         self.mutation_type = mutation_type
@@ -85,7 +97,9 @@ class Population:
         else:
             self.recombination = self.recombination_funcs[recombination_type]
         self.problem = problem
-        self.filename = problem.name + "_" + str(problem.num_of_objectives)
+        self.filename = (
+            problem.name + "_" + str(problem.num_of_objectives)
+        )  # Used for plotting
         self.plotting = plotting
         self.individuals = []
         self.objectives = np.empty((0, self.problem.num_of_objectives), float)
@@ -98,33 +112,28 @@ class Population:
         )
         self.ideal_fitness = np.full((1, self.problem.num_of_objectives), np.inf)
         self.worst_fitness = -1 * self.ideal_fitness
+
         if not assign_type == "empty":
-            individuals = create_new_individuals(assign_type, problem, pop_size=self.pop_size)
+            individuals = create_new_individuals(
+                assign_type, problem, pop_size=self.pop_size
+            )
             self.add(individuals)
 
         if self.plotting:
             self.figure = []
             self.plot_init_()
 
-    def eval_fitness(self):
-        """
-        Calculate fitness based on objective values. Fitness = obj if minimized.
-        """
-        fitness = self.objectives * self.problem.objs
-        return fitness
-
     def add(self, new_pop: np.ndarray):
         """Evaluate and add individuals to the population. Update ideal and nadir point.
 
         Parameters
         ----------
-        new_pop: np.ndarray
+        new_pop: ndarray
             Decision variable values for new population.
         """
         for i in range(len(new_pop)):
-             self.append_individual(new_pop[i])
+            self.append_individual(new_pop[i])
 
-        # print(self.ideal_fitness)
         self.update_ideal_and_nadir()
 
     def append_individual(self, ind: np.ndarray):
@@ -207,7 +216,7 @@ class Population:
             self.fitness = deleted_fitness
             self.constraint_violation = deleted_cv
 
-    def evolve(self, EA: "BaseEA" = None, EA_parameters: dict = {}) -> "Population":
+    def evolve(self, EA: "BaseEA" = None, ea_parameters: dict = None):
         """Evolve the population with interruptions.
 
         Evolves the population based on the EA sent by the user.
@@ -216,7 +225,7 @@ class Population:
         ----------
         EA: "BaseEA"
             Should be a derivative of BaseEA (Default value = None)
-        EA_parameters: dict
+        ea_parameters: dict
             Contains the parameters needed by EA (Default value = None)
 
         """
@@ -230,17 +239,16 @@ class Population:
             progressbar = tqdm
         ####################################
         # A basic evolution cycle. Will be updated to optimize() in future versions.
-        ea = EA(self, EA_parameters)
+        ea = EA(self, ea_parameters)
         iterations = ea.params["iterations"]
 
         if self.plotting:
             self.plot_objectives()  # Figure was created in init
-        for i in progressbar(range(0, iterations), desc="Iteration"):
+        for i in progressbar(range(iterations), desc="Iteration"):
             ea._run_interruption(self)
             ea._next_iteration(self)
             if self.plotting:
                 self.plot_objectives()
-
 
     def mate(self, mating_pop=None, params=None):
         """Conduct crossover and mutation over the population.
@@ -251,9 +259,22 @@ class Population:
             offspring = self.recombination.mate(mating_pop, self.individuals, params)
         else:
             offspring = self.crossover.mate(mating_pop, self.individuals, params)
-            self.mutation.mutate(offspring, self.individuals, params, self.lower_limits, self.upper_limits)
+            self.mutation.mutate(
+                offspring,
+                self.individuals,
+                params,
+                self.lower_limits,
+                self.upper_limits,
+            )
 
         return offspring
+
+    def eval_fitness(self):
+        """
+        Calculate fitness based on objective values. Fitness = obj if minimized.
+        """
+        fitness = self.objectives * self.problem.objs
+        return fitness
 
     def plot_init_(self):
         """Initialize animation objects. Return figure"""
@@ -272,6 +293,56 @@ class Population:
         obj = self.objectives
         self.figure = animate_next_(
             obj, self.figure, self.filename + ".html", iteration
+        )
+
+    def plot_pareto(self, name, show_all=False):
+        """Plot the pareto front.
+
+        Parameters
+        ----------
+        name : str
+            Name to append to the plot filename.
+        show_all : bool
+            Show all solutions, including those not on the pareto front.
+
+        """
+        if name is None:
+            name = self.problem.name
+
+        ndf = self.non_dominated()
+        pareto = self.objectives[ndf]
+        pareto_pop = np.asarray(self.individuals)[ndf].tolist()
+
+        for idx, x in enumerate(pareto_pop):
+
+            for i, y in enumerate(x):
+                x[i] = "x" + str(i + 1) + ": " + str(y) + "<br>"
+            x.insert(0, "Model " + str(idx))
+
+        trace0 = go.Scatter(
+            x=pareto[:, 0],
+            y=pareto[:, 1],
+            text=pareto_pop,
+            hoverinfo="text",
+            mode="markers+lines",
+        )
+
+        if show_all:
+            trace1 = go.Scatter(
+                x=self.objectives[:, 0], y=self.objectives[:, 1], mode="markers"
+            )
+
+            data = [trace0, trace1]
+        else:
+            data = [trace0]
+
+        layout = go.Layout(xaxis=dict(title="f1"), yaxis=dict(title="f2"))
+        plotly.offline.plot(
+            {"data": data, "layout": layout},
+            filename=name
+            + "pareto"
+            + ".html",
+            auto_open=True,
         )
 
     def hypervolume(self, ref_point):

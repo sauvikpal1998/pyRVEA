@@ -35,10 +35,12 @@ class RVEA(BaseDecompositionEA):
         lattice_resolution: int = None,
         interact: bool = False,
         a_priori_preference: bool = False,
-        generations_per_iteration: int = 10,
+        generations_per_iteration: int = 100,
         iterations: int = 10,
         Alpha: float = 2,
         plotting: bool = True,
+        logging: bool = False,
+        logfile=None
     ):
         """Set up the parameters. Save in RVEA.params. Note, this should be
         changed to align with the current structure.
@@ -93,12 +95,16 @@ class RVEA(BaseDecompositionEA):
             "iterations": iterations,
             "Alpha": Alpha,
             "ploton": plotting,
+            "logging": logging,
+            "logfile": logfile,
             "current_iteration_gen_count": 0,
             "current_iteration_count": 0,
+            "current_total_gen_count": 0,
+            "total_generations": generations_per_iteration * iterations,
             "reference_vectors": ReferenceVectors(
                 lattice_resolution, population.problem.num_of_objectives
             ),
-            "prob_mut": 1 / population.num_var,
+            "prob_mutation": 1 / population.num_var,
             "dis_mut": 20,
             "prob_xover": 1,
             "dis_xover": 30

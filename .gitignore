@@ -71,7 +71,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+# _build
 
 # PyBuilder
 target/
@@ -136,4 +136,11 @@ dmypy.json
 
 .tests.py
 Tests/
+my-tests/
 *.csv
+
+# BioGP stuff
+*.gv
+*.gv.png
+tiny_gp.py
+tiny_gp_plus.py
