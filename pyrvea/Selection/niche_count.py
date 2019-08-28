@@ -2,7 +2,7 @@ import numpy as np
 from math import sqrt
 
 def get_niche_count(
-    f_diff: np.ndarray,             # list of objectives max-min
+    f_diff: np.ndarray,             # list of objectives max-min value
     min_dist: int,                  # minimum distance param
     sigma_share: int,               # sigma share value
     f_pop_vals: np.ndarray,         # calculated values of objective funcs. for population - shape=[objectives][pops]
@@ -11,17 +11,18 @@ def get_niche_count(
 ):
 
     niche_count = 0
-    
-    for i in range(len(f_pop_vals[0])):
+
+    for i in range(len(f_pop_vals)):
         dist = 0
-        for j in range(len(f_pop_vals)):
-            dist += ((f_selected_val[j]-f_pop_vals[j][i])/(f_diff[j]))**2
+        for j in range(len(f_selected_val)):
+            dist += ((f_selected_val[j]-f_pop_vals[i][j])/f_diff[j])**2
         dist = sqrt(dist)
 
         if(dist<min_dist):
             niche_count += 1-(dist/sigma_share)
-
+    print(niche_count)
     return niche_count
+
 
 def best_niche_index(
     population: list,
@@ -55,7 +56,7 @@ def best_niche_index(
     # TODO: How to optimize niche count calculation
 
     # params set
-    sigma_share = 0.2
+    sigma_share = 1
     min_dist = 0.5
 
     niche_counts = []

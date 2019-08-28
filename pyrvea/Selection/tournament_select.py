@@ -28,7 +28,7 @@ def tour_select(fitness, tournament_size):
     return chosen[0][0]
 
 
-def constraint_tour_select(constraints: list, population: list, objectives: list):
+def constraint_tour_select(constraints: list, population: list, objectives: list, flags: list):
     """
     A binary Tournament constraint selection method.
 
@@ -40,6 +40,8 @@ def constraint_tour_select(constraints: list, population: list, objectives: list
         The total population
     objectives : array_like
         Objective functions
+    flags : array_like
+        An array of flags whether the objective function should be max. in min.
     
     Returns
     -------
@@ -50,7 +52,7 @@ def constraint_tour_select(constraints: list, population: list, objectives: list
     new_population = []
     # count = 0
     while len(alt_population) > 2:
-        print(len(alt_population))
+        # print(len(alt_population))
         # count = count + 1
         individuals = []
         for i in range(2):
@@ -62,7 +64,8 @@ def constraint_tour_select(constraints: list, population: list, objectives: list
         feasibility = [True, True]
 
         # check feasibility
-
+        print("Individuals-")
+        print(individuals)
         for constraint in constraints:
             if constraint(individuals[0]) == False:
                 feasibility[0] = False
@@ -109,44 +112,55 @@ def constraint_tour_select(constraints: list, population: list, objectives: list
                 for obj in objectives:
                     objective_vals.append(obj(comparitive))
                 comparison_set_objective_vals.append(objective_vals)
-            # print(comparison_set_objective_vals)
             selected_individuals_obj_vals = []
+
+            print("comparison_set_objective_vals", np.array(comparison_set_objective_vals))
 
             for i, individual in enumerate(individuals):
                 objective_vals = []
                 for obj in objectives:
-                    objective_vals.append(obj(comparitive))
+                    objective_vals.append(obj(individual))
                 flag = False
-
                 selected_individuals_obj_vals.append(objective_vals)
-
+                
+                print(f"obj_vals-{i}", np.array(objective_vals))
+                
                 for cs_indi_vals in comparison_set_objective_vals:
-                    print('------')
-                    for obj_val, cs_val in zip(objective_vals, cs_indi_vals):
-                        print('obj-vals=', obj_val,' cs-val=', cs_val)
-                        if obj_val >= cs_val:
-                            flag = True
-                            break
+                    # print('------')
+                    
+                    for i, (obj_val, cs_val) in enumerate(zip(objective_vals, cs_indi_vals)):
+                        # print('obj-vals=', obj_val,' cs-val=', cs_val)
+                        print(obj_val, cs_val)
+                        if flags[i]=="max":
+                            if obj_val >= cs_val:
+                                flag = True
+                                break
+                        elif flags[i]=="min":
+                            if obj_val <= cs_val:
+                                flag = True
+                                break
                     if flag:
                         break
-                print(flag)
+                # print(flag)
                 if flag == False:
                     dominance[i] = flag
 
             # check if dominance is same
 
             if dominance[0] != dominance[1]:
-                # print("dominance")
+                print("dominance", dominance)
                 if dominance[0]:
                     new_population.append(individuals[0])
                 else:
                     new_population.append(individuals[1])
-
+        
             # niche count comparison if both the values are same
 
             else:
                 # print(dominance)
-                # print("niche count")
+                print("niche count", dominance)
+                # print("selected_individuals_obj_vals")
+                # print(selected_individuals_obj_vals)
                 new_population.append(
                     individuals[
                         niche_count.best_niche_index(
