@@ -56,8 +56,8 @@ def best_niche_index(
     # TODO: How to optimize niche count calculation
 
     # params set
-    sigma_share = 1
-    min_dist = 0.5
+    sigma_share = 25
+    min_dist = 20
 
     niche_counts = []
 
