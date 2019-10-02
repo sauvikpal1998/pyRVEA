@@ -38,16 +38,14 @@ class constraint_tour_select:
         return individuals
 
     def get_feasibility(self, individuals):
-        feasibility = [True, True]
-
+        feasibility = [True for i in range(len(individuals))]
         # check feasibility
         print("Individuals-")
         print(individuals)
         for constraint in self.constraints:
-            if constraint(individuals[0]) == False:
-                feasibility[0] = False
-            if constraint(individuals[1]) == False:
-                feasibility[1] = False
+            for i in range(len(individuals)):
+                if constraint(individuals[i])==False:
+                    feasibility[i] = False
 
         return feasibility
 
