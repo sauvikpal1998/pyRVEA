@@ -34,14 +34,14 @@ class constraint_tour_select:
         for i in range(2):
             index = np.random.randint(0, len(population)-1)
             individuals.append(population[index])
-            population.pop(index)
+            # population.pop(index)
         return individuals
 
     def get_feasibility(self, individuals):
         feasibility = [True for i in range(len(individuals))]
         # check feasibility
-        print("Individuals-")
-        print(individuals)
+        # print("Individuals-", end=" ")
+        # print(individuals)
         for constraint in self.constraints:
             for i in range(len(individuals)):
                 if constraint(individuals[i])==False:
@@ -79,17 +79,17 @@ class constraint_tour_select:
             comparison_set_objective_vals.append(objective_vals)
         
 
-        print("comparison_set_objective_vals", np.array(comparison_set_objective_vals))
+        # print("comparison_set_objective_vals", np.array(comparison_set_objective_vals))
         
         selected_individuals_obj_vals = []
         for i, individual in enumerate(individuals):
-            print(f"individual-{i} = {individual}")
+            # print(f"individual-{i} = {individual}")
             objective_vals = []
             for obj in self.objectives:
                 objective_vals.append(obj(individual))
             selected_individuals_obj_vals.append(objective_vals)
             
-            print(f"obj_vals", np.array(objective_vals))
+            # print(f"obj_vals", np.array(objective_vals))
             
             for cs_indi_vals in comparison_set_objective_vals:
                 
@@ -97,7 +97,7 @@ class constraint_tour_select:
                 indi_flag = False
                 for j, (obj_val, cs_val) in enumerate(zip(objective_vals, cs_indi_vals)):
                     # print('obj-vals=', obj_val,' cs-val=', cs_val)
-                    print(obj_val, cs_val)
+                    # print(obj_val, cs_val)
                     if self.flags[j]=="max":
                         if obj_val < cs_val:
                             indi_flag = True
@@ -126,21 +126,23 @@ class constraint_tour_select:
         self.new_population = []
         alt_population = list(self.population)
 
-        while(len(alt_population)>=20):
+        while(len(self.new_population)<=len(population)):
 
             # Selecting individuals for comparison
-            if len(alt_population)==2:
-                individuals = [alt_population[0], alt_population[1]]
-                alt_population.pop(0)
-            else:
-                individuals = self.select_individuals(alt_population)
+            # if len(alt_population)==2:
+            #     individuals = [alt_population[0], alt_population[1]]
+            #     alt_population.pop(0)
+            # else:
+            #     individuals = self.select_individuals(alt_population)
             
+            individuals = self.select_individuals(population)
+
             # Getting feasibilities
             feasibility = self.get_feasibility(individuals)
 
             # if feasibilty is not same
             if feasibility[0] != feasibility[1]:
-                print("feasibility")
+                # print("feasibility")
                 if feasibility[0]:
                     self.new_population.append(individuals[0])
                 else:
@@ -153,7 +155,7 @@ class constraint_tour_select:
             dominance = self.get_dominance(individuals, feasibility, alt_population)
 
             if dominance[0]!=dominance[1]:
-                print("dominance", dominance)
+                # print("dominance", dominance)
                 if dominance[0]:
                     self.new_population.append(individuals[0])
                 else:
@@ -163,7 +165,7 @@ class constraint_tour_select:
                 continue
             
             # Niche count
-            print("Niche count")
+            # print("Niche count")
             # print(len(alt_population), self.selected_individuals_obj_vals)
             self.new_population.append(
                     individuals[

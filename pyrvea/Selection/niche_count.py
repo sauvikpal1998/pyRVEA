@@ -20,7 +20,7 @@ def get_niche_count(
 
         if(dist<min_dist):
             niche_count += 1-(dist/sigma_share)
-    print(niche_count)
+    # print(niche_count)
     return niche_count
 
 
