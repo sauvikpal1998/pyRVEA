@@ -38,10 +38,9 @@ class constraint_tour_select:
         return individuals
 
     def get_feasibility(self, individuals):
+        # print("feasibility_check")
         feasibility = [True for i in range(len(individuals))]
-        # check feasibility
-        # print("Individuals-", end=" ")
-        # print(individuals)
+
         for constraint in self.constraints:
             for i in range(len(individuals)):
                 if constraint(individuals[i])==False:
@@ -50,22 +49,22 @@ class constraint_tour_select:
         return feasibility
 
     def get_dominance(self, individuals, feasibility, population):
+        # print("dominance_check ", feasibility)
         comparison_set = []
-        comparison_set_type = feasibility[0]
 
         # create a comparison set
-
-        while len(comparison_set) < 10:
+        i = 0
+        while (len(comparison_set) < 10):
+            i += 1
             rand_num = np.random.randint(len(population))
             individual = population[rand_num]
-            indi_feasibility = True
 
-            for constraint in self.constraints:
-                if constraint(individual) != comparison_set_type:
-                    indi_feasibility = False
-
-            if indi_feasibility:
+            flag = self.get_feasibility([individual])[0]
+            if(flag == feasibility):
                 comparison_set.append(individual)
+            
+            if i>300:
+                raise ValueError('Unable to build comparison set')
 
         dominance = [True, True]
         # True => non dominant to all
@@ -139,10 +138,12 @@ class constraint_tour_select:
 
             # Getting feasibilities
             feasibility = self.get_feasibility(individuals)
-
+            # print(individuals)
             # if feasibilty is not same
+            
             if feasibility[0] != feasibility[1]:
                 # print("feasibility")
+                # print(feasibility)
                 if feasibility[0]:
                     self.new_population.append(individuals[0])
                 else:
@@ -152,7 +153,7 @@ class constraint_tour_select:
                 continue
 
             # If feasibilty is the same
-            dominance = self.get_dominance(individuals, feasibility, alt_population)
+            dominance = self.get_dominance(individuals, feasibility[0], alt_population)
 
             if dominance[0]!=dominance[1]:
                 # print("dominance", dominance)
